@@ -2,6 +2,8 @@
 
 namespace Rappasoft\LaravelLivewireTables\Traits\Configuration;
 
+use Closure;
+
 trait BulkActionsConfiguration
 {
     /**
@@ -80,7 +82,7 @@ trait BulkActionsConfiguration
     public function setBulkActionConfirms(array $bulkActionConfirms): self
     {
         foreach ($bulkActionConfirms as $bulkAction) {
-            if (! $this->hasConfirmationMessage($bulkAction)) {
+            if (!$this->hasConfirmationMessage($bulkAction)) {
                 $this->setBulkActionConfirmMessage($bulkAction, $this->getBulkActionDefaultConfirmationMessage());
             }
         }
@@ -191,6 +193,13 @@ trait BulkActionsConfiguration
     public function setDelaySelectAllDisabled(): self
     {
         $this->setDelaySelectAllStatus(false);
+
+        return $this;
+    }
+
+    public function setAllowBulkActionForRow(Closure|bool $condition = true): self
+    {
+        $this->bulkActionCondition = $condition;
 
         return $this;
     }

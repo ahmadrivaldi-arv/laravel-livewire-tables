@@ -133,7 +133,7 @@ trait BulkActionsHelpers
      */
     public function updatedSelected(): void
     {
-        if (! $this->getDelaySelectAllStatus()) {
+        if (!$this->getDelaySelectAllStatus()) {
             $this->setSelectAllDisabled();
         }
     }
@@ -156,7 +156,17 @@ trait BulkActionsHelpers
     public function setAllSelected(): void
     {
         $this->setSelectAllEnabled();
-        $this->setSelected((clone $this->baseQuery())->pluck($this->getBuilder()->getModel()->getTable().'.'.$this->getPrimaryKey())->map(fn ($item) => (string) $item)->toArray());
+
+        $columns = collect($this->getSelectedColumnsForQuery())->map(fn($column) => $column->getColumn());
+
+        $cloned = (clone $this->baseQuery()->select())
+            ->select($columns->toArray())
+            ->get()
+            ->reject(fn($row) => !$this->isBulkActionAllowedForRow($row))
+            ->map(fn($item) => (string) $item->{$this->getPrimaryKey()})
+            ->values();
+
+        $this->setSelected($cloned->toArray());
     }
 
     public function showBulkActionsDropdownAlpine(): bool
@@ -203,7 +213,7 @@ trait BulkActionsHelpers
     public function getSelectedRows(): array
     {
         if ($this->getDelaySelectAllStatus() && $this->selectAllIsEnabled()) {
-            return (clone $this->baseQuery())->select($this->getBuilder()->getModel()->getTable().'.'.$this->getPrimaryKey())->pluck($this->getBuilder()->getModel()->getTable().'.'.$this->getPrimaryKey())->map(fn ($item) => $item)->toArray();
+            return (clone $this->baseQuery())->select($this->getBuilder()->getModel()->getTable() . '.' . $this->getPrimaryKey())->pluck($this->getBuilder()->getModel()->getTable() . '.' . $this->getPrimaryKey())->map(fn($item) => $item)->toArray();
         } else {
             return $this->selected;
         }
@@ -216,6 +226,6 @@ trait BulkActionsHelpers
 
     public function getBulkActionsColumn(): Column
     {
-        return Column::make('bulkactions')->label(fn () => null);
+        return Column::make('bulkactions')->label(fn() => null);
     }
 }

@@ -38,8 +38,11 @@ trait WithData
         $executedQuery = $this->executeQuery();
 
         // Get All Currently Paginated Items Primary Keys
-        $this->paginationCurrentItems = $executedQuery->pluck($this->getPrimaryKey())->toArray() ?? [];
+        $this->paginationCurrentItems = $executedQuery
+            ->reject(fn($item) => !$this->isBulkActionAllowedForRow($item))
+            ->pluck($this->getPrimaryKey())->toArray() ?? [];
 
+        // dd($this->paginationCurrentItems);
         // Get Count of Items in Current Page
         $this->paginationCurrentCount = $executedQuery->count();
 
@@ -99,10 +102,13 @@ trait WithData
 
         if ($this->paginationIsEnabled()) {
             if ($this->isPaginationMethod('standard')) {
+
+                $itemCount = $this->getBuilder()->get()->reject(fn($row) => !$this->isBulkActionAllowedForRow($row))->values()->pluck($this->getPrimaryKey())
+                    ->count();
                 $paginatedResults = $this->getBuilder()->paginate($this->getPerPage() === -1 ? $this->getBuilder()->count() : $this->getPerPage(), ['*'], $this->getComputedPageName());
 
                 // Get the total number of items available
-                $this->paginationTotalItemCount = $paginatedResults->total() ?? 0;
+                $this->paginationTotalItemCount = $itemCount ?? 0;
 
                 return $paginatedResults;
             } elseif ($this->isPaginationMethod('simple')) {
@@ -174,7 +180,7 @@ trait WithData
                     $foreign = "$tableAlias.{$model->getForeignKeyName()}";
                     $other = $i === 0
                         ? $model->getQualifiedParentKeyName()
-                        : $lastAlias.'.'.$model->getLocalKeyName();
+                        : $lastAlias . '.' . $model->getLocalKeyName();
 
                     break;
 
@@ -182,7 +188,7 @@ trait WithData
                     $table = "{$model->getRelated()->getTable()} AS $tableAlias";
                     $foreign = $i === 0
                         ? $model->getQualifiedForeignKeyName()
-                        : $lastAlias.'.'.$model->getForeignKeyName();
+                        : $lastAlias . '.' . $model->getForeignKeyName();
 
                     $other = "$tableAlias.{$model->getOwnerKeyName()}";
 
@@ -208,7 +214,7 @@ trait WithData
             $joins[] = $join->table;
         }
 
-        if (! in_array($table, $joins, true)) {
+        if (!in_array($table, $joins, true)) {
             $this->setBuilder($this->getBuilder()->join($table, $foreign, '=', $other, $type));
         }
 
@@ -224,11 +230,11 @@ trait WithData
 
         if ($this->getExcludeDeselectedColumnsFromQuery()) {
             foreach ($this->getSelectedColumnsForQuery() as $column) {
-                $this->setBuilder($this->getBuilder()->addSelect($column->getColumn().' as '.$column->getColumnSelectName()));
+                $this->setBuilder($this->getBuilder()->addSelect($column->getColumn() . ' as ' . $column->getColumnSelectName()));
             }
         } else {
-            foreach ($this->getColumns()->reject(fn (Column $column) => $column->isLabel()) as $column) {
-                $this->setBuilder($this->getBuilder()->addSelect($column->getColumn().' as '.$column->getColumnSelectName()));
+            foreach ($this->getColumns()->reject(fn(Column $column) => $column->isLabel()) as $column) {
+                $this->setBuilder($this->getBuilder()->addSelect($column->getColumn() . ' as ' . $column->getColumnSelectName()));
             }
         }
 
@@ -261,11 +267,11 @@ trait WithData
      */
     protected function getTableAlias(?string $currentTableAlias, string $relationPart): string
     {
-        if (! $currentTableAlias) {
+        if (!$currentTableAlias) {
             return $relationPart;
         }
 
-        return $currentTableAlias.'_'.$relationPart;
+        return $currentTableAlias . '_' . $relationPart;
     }
 
     /**
@@ -287,7 +293,7 @@ trait WithData
      */
     public function renderingWithData(\Illuminate\View\View $view, array $data = []): void
     {
-        if (! $this->getComputedPropertiesStatus()) {
+        if (!$this->getComputedPropertiesStatus()) {
             $view->with([
                 'filterGenericData' => $this->getFilterGenericData(),
                 'rows' => $this->getRows(),
